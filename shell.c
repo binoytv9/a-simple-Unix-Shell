@@ -1,10 +1,4 @@
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
-#include"tlpi_hdr.h"
-
-/* defines ename */
-#include"ename.c.inc"
+#include"error_functions.c"
 
 #define MAX_ARG 100
 #define MAX_LENGTH 500
