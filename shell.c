@@ -1,3 +1,4 @@
+#include<stdbool.h>
 #include"error_functions.c"
 
 #define MAX_ARG 100
@@ -13,22 +14,14 @@ int main(int argc, char *argv[])
 	pid_t childPid;
 	char *argVec[MAX_ARG];
 	char line[MAX_LENGTH];
+	int toBackground = false;
 
 	if(argc > 1 || (argc > 1 && strcmp(argv[1],"--help") == 0))
 		usageErr("%s - a simple SHELL interpreter\nNo arguments required\n",argv[0]);
 
 	while(getLine(line, MAX_LENGTH) != EOF){
-
-//printf("\nlen = %ld\n",strlen(line));
-
 		stripToArg(line, argVec);
-/*
-char **ap = argVec;
-while(*ap)
-	printf("\n[%s]\n",*ap++);
-*/
-
-		if(argVec[0] != NULL)
+		if(argVec[0] != NULL){
 			switch(childPid = fork()){
 				case -1:/* error */
 					errExit("fork");
@@ -43,10 +36,11 @@ while(*ap)
 						errExit("execve");
 
 				default:/* parent */
-					if(wait(NULL) == -1)
+					if(!toBackground && wait(NULL) == -1)
 						errExit("wait");
 					break;
 			}
+		}
 	}
 	putchar('\n');
 
