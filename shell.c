@@ -1,3 +1,4 @@
+#include<fcntl.h>
 #include<stdbool.h>
 #include"error_functions.c"
 
@@ -11,6 +12,7 @@ extern char **environ;
 
 int main(int argc, char *argv[])
 {
+	int fd;
 	pid_t childPid;
 	char *argVec[MAX_ARG];
 	char line[MAX_LENGTH];
@@ -27,6 +29,11 @@ int main(int argc, char *argv[])
 					errExit("fork");
 
 				case 0 :/* child  */
+/*
+					fd = open("abc",O_WRONLY | O_TRUNC | O_CREAT,0644);
+					close(1);
+					dup(fd);
+*/
 					execvp(argVec[0], argVec);
 					if(errno == ENOENT){ /* file not found */
 						fprintf(stderr,"%s: command not found\n",argVec[0]);
