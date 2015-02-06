@@ -19,11 +19,10 @@ char *bufp = buffer;
 int main(int argc, char *argv[])
 {
 	int fd;
-	pid_t childPid;
-	int redirection;
+	char *line2;
 	int pipeEnable;
+	int redirection;
 	int toBackground;
-	char *line2 = NULL;
 	char *argVec[MAX_ARG];
 	char *argVec2[MAX_ARG];
 	char line[MAX_LENGTH];
@@ -32,18 +31,21 @@ int main(int argc, char *argv[])
 	if(argc > 1 || (argc > 1 && strcmp(argv[1],"--help") == 0))
 		usageErr("%s - a simple SHELL interpreter\nNo arguments required\n",argv[0]);
 
-	int pfd[2];
-	if(pipe(pfd) == -1)
-		errExit("pipe");
 
+	line2 = NULL;
 	pipeEnable = false;
 	redirection = false;
 	toBackground = false;
 	while(getLine(line, &line2, &pipeEnable, &toBackground, &redirection, redirectionFile, MAX_LENGTH) != EOF){
 		stripToArg(line, argVec);
 		stripToArg(line2, argVec2);
+
+		int pfd[2];
+		if(pipe(pfd) == -1)
+			errExit("pipe");
+
 		if(argVec[0] != NULL){
-			switch(childPid = fork()){
+			switch(fork()){
 				/* error */
 				case -1:
 					errExit("fork");
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
 					if(pipeEnable){
 						if(close(pfd[0]) == -1)
 							errExit("close 1");
+
 						if(pfd[1] != STDOUT_FILENO){
 							if(dup2(pfd[1], STDOUT_FILENO) == -1)
 								errExit("dup2 1");
@@ -92,16 +95,16 @@ int main(int argc, char *argv[])
 					errExit("fork");
 				/* child  */
 				case 0 :
-					if(pipeEnable){
-						if(close(pfd[1]) == -1)
-							errExit("close 3");
-						if(pfd[0] != STDIN_FILENO){
-							if(dup2(pfd[0], STDIN_FILENO) == -1)
-								errExit("dup2 2");
-							if(close(pfd[0]) == -1)
-								errExit("close 4");
-						}
+					if(close(pfd[1]) == -1)
+						errExit("close 3");
+
+					if(pfd[0] != STDIN_FILENO){
+						if(dup2(pfd[0], STDIN_FILENO) == -1)
+							errExit("dup2 2");
+						if(close(pfd[0]) == -1)
+							errExit("close 4");
 					}
+
 					execvp(argVec2[0], argVec2);
 					if(errno == ENOENT){ /* file not found */
 						fprintf(stderr,"%s: command not found\n",argVec[0]);
