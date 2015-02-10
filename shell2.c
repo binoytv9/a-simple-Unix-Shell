@@ -1,3 +1,5 @@
+#include<sys/types.h>
+#include<sys/wait.h>
 #include<fcntl.h>
 #include<ctype.h>
 #include<stdbool.h>
@@ -57,11 +59,13 @@ int main(int argc, char *argv[])
 			printf("%c\n",*op++);
 			getchar();
 		}
-*/
+
 		cp = commandArr;
 		op = operatorArr;
+*/
 
-		int pfd[2];
+		int new_pfd[2];
+		int old_pfd[] = {-1, -1};
 		int prevOperator = None;
 		int nextOperator = None;
 
@@ -73,28 +77,10 @@ int main(int argc, char *argv[])
 			nextOperator = *op;
 			if(nextOperator == '|'){
 				// creating pipe
-				if(pipe(pfd) == -1)
+				if(pipe(new_pfd) == -1)
 					errExit("pipe");
 			}
 
-
-/*
-			if(nextOperator == '>'){
-				char *outputFile = **++cp;
-
-printf("filename %s\n",outputFile);
-
-				fd = open(outputFile, O_WRONLY | O_TRUNC | O_CREAT, 
-					S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-				if(fd != STDOUT_FILENO){
-					if(dup2(fd, STDOUT_FILENO) == -1)
-						errExit("dup in >");
-					if(close(fd) == -1)
-						errExit("close in >");
-				}
-			}
-
-*/
 
 			switch(fork()){
 				// error
@@ -102,50 +88,27 @@ printf("filename %s\n",outputFile);
 					errExit("fork");
 				// child
 				case 0 :
-//printf("\ninside child\n");
 					if(prevOperator == '|'){
-/*
-						if(close(pfd[1]) == -1) // closing write end
-							errExit("close 1");
-*/
-
-						if(pfd[0] != STDIN_FILENO){
-							if(dup2(pfd[0], STDIN_FILENO) == -1)
+						if(old_pfd[0] != STDIN_FILENO){
+							if(dup2(old_pfd[0], STDIN_FILENO) == -1)
 								errExit("dup2 1");
-							if(close(pfd[0]) == -1)
+							if(close(old_pfd[0]) == -1)
 								errExit("close 2");
 						}
 					}
 
-//printf("\n%c %s %c\n",prevOperator,argVec[0],nextOperator);	
+printf("\n%c %s %c old:%d %d new:%d %d \n",prevOperator,argVec[0],nextOperator,old_pfd[0],old_pfd[1],new_pfd[0],new_pfd[1]);	
 
-					switch(nextOperator){
-						case '&':
-							break;
-
-						case '>':
-							break;
-
-						case '|':
-/*
-							if(close(pfd[0]) == -1) // closing read end
-								errExit("close 3");
-*/
-
-							if(pfd[1] != STDOUT_FILENO){
-								if(dup2(pfd[1], STDOUT_FILENO) == -1)
-									errExit("dup2 2");
-								if(close(pfd[1]) == -1)
-									errExit("close 4");
-							}
-							break;
-
-						case '\0':
-							break;
-
-						default :
-							fprintf(stderr,"\nundefined operator : %c\n",nextOperator);
-							exit(EXIT_FAILURE);
+					if (nextOperator == '|')
+						if(new_pfd[1] != STDOUT_FILENO){
+							if(dup2(new_pfd[1], STDOUT_FILENO) == -1)
+								errExit("dup2 2");
+							if(close(new_pfd[1]) == -1)
+								errExit("close 4");
+						}
+					else{
+						fprintf(stderr,"\nundefined operator : %c\n",nextOperator);
+						exit(EXIT_FAILURE);
 					}
 
 					execvp(argVec[0], argVec);
@@ -158,7 +121,14 @@ printf("filename %s\n",outputFile);
 						errExit("execve");
 				// parent
 				default:
+/*
+					if(wait(NULL) == -1)
+						errExit("wait");
+*/
+
 					prevOperator = nextOperator;
+					old_pfd[0] = new_pfd[0];
+					old_pfd[1] = new_pfd[1];
 					break;
 			}
 
@@ -166,20 +136,21 @@ printf("filename %s\n",outputFile);
 		cp++;
 		op++;
 		}
-/*
-		if(close(pfd[0]) == -1)
-			errExit("close 5");
-		if(close(pfd[1]) == -1)
-			errExit("close 6");
-*/
+	
+/*	
+		if(nextOperator == '|'){
+			if(close(new_pfd[0]) == -1)
+				errExit("close 5");
+			if(close(new_pfd[1]) == -1)
+				errExit("close 6");
+		}
 
-/*
+*/
 //printf("childNum %d\n",childNum);
 		// calling wait() for each child
 		for(i = 0; i < childNum; i++)	
 			if(wait(NULL) == -1)
 				errExit("wait %d",i);
-*/
 	}
 	putchar('\n');
 
