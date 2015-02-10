@@ -61,11 +61,7 @@ int main(int argc, char *argv[])
 		cp = commandArr;
 		op = operatorArr;
 
-		// creating pipe
 		int pfd[2];
-		if(pipe(pfd) == -1)
-			errExit("pipe");
-
 		int prevOperator = None;
 		int nextOperator = None;
 
@@ -75,7 +71,14 @@ int main(int argc, char *argv[])
 			argVec = *cp;
 
 			nextOperator = *op;
+			if(nextOperator == '|'){
+				// creating pipe
+				if(pipe(pfd) == -1)
+					errExit("pipe");
+			}
 
+
+/*
 			if(nextOperator == '>'){
 				char *outputFile = **++cp;
 
@@ -91,6 +94,8 @@ printf("filename %s\n",outputFile);
 				}
 			}
 
+*/
+
 			switch(fork()){
 				// error
 				case -1:
@@ -99,8 +104,10 @@ printf("filename %s\n",outputFile);
 				case 0 :
 //printf("\ninside child\n");
 					if(prevOperator == '|'){
+/*
 						if(close(pfd[1]) == -1) // closing write end
 							errExit("close 1");
+*/
 
 						if(pfd[0] != STDIN_FILENO){
 							if(dup2(pfd[0], STDIN_FILENO) == -1)
@@ -110,7 +117,7 @@ printf("filename %s\n",outputFile);
 						}
 					}
 
-printf("\n%c %s %c\n",prevOperator,argVec[0],nextOperator);	
+//printf("\n%c %s %c\n",prevOperator,argVec[0],nextOperator);	
 
 					switch(nextOperator){
 						case '&':
@@ -120,8 +127,10 @@ printf("\n%c %s %c\n",prevOperator,argVec[0],nextOperator);
 							break;
 
 						case '|':
-//							if(close(pfd[0]) == -1) // closing read end
-//								errExit("close 3");
+/*
+							if(close(pfd[0]) == -1) // closing read end
+								errExit("close 3");
+*/
 
 							if(pfd[1] != STDOUT_FILENO){
 								if(dup2(pfd[1], STDOUT_FILENO) == -1)
@@ -157,16 +166,20 @@ printf("\n%c %s %c\n",prevOperator,argVec[0],nextOperator);
 		cp++;
 		op++;
 		}
+/*
 		if(close(pfd[0]) == -1)
 			errExit("close 5");
 		if(close(pfd[1]) == -1)
 			errExit("close 6");
+*/
 
-printf("childNum %d\n",childNum);
+/*
+//printf("childNum %d\n",childNum);
 		// calling wait() for each child
 		for(i = 0; i < childNum; i++)	
 			if(wait(NULL) == -1)
 				errExit("wait %d",i);
+*/
 	}
 	putchar('\n');
 
