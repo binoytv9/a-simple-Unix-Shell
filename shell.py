@@ -5,7 +5,7 @@ def errExit(errMsg):
 	print errMsg
 	sys.exit(1)
 
-def getLine(l1, l2, pipeEnable=False, toBackground=False, redirection=False, redirectionFile=[""]):
+def getLine(l1, l2, l3, pipeEnable=False, pipe2Enable = False, toBackground=False, redirection=False, redirectionFile=[""]):
 	fd = sys.stdin
 	len1 = 0
 	print ">>> ",
@@ -38,15 +38,27 @@ def getLine(l1, l2, pipeEnable=False, toBackground=False, redirection=False, red
 		len2 = 0
 		while True:
 			c = fd.read(1)
-			if c != '\n' and c != '':
+			if c != '\n' and c != '' and c != '|':
 				l2[0] += c
 			else:
 				break
 		if len2 == 0 and c == '' :
                         errExit("no program provided after |\n");
+
+		if c == '|':
+			pipe2Enable = True
+			len2 = 0
+			while True:
+				c = fd.read(1)
+				if c != '\n' and c != '':
+					l3[0] += c
+				else:
+					break
+			if len2 == 0 and c == '' :
+				errExit("no program provided after |\n");
 		
 
-	return  pipeEnable, toBackground, redirection, redirectionFile
+	return  pipeEnable, pipe2Enable, toBackground, redirection, redirectionFile
 
 
 def main():
@@ -59,17 +71,23 @@ def main():
 	while True:
 		l1 = [""]
 		l2 = [""]
+		l3 = [""]
 
-		ret = getLine(l1, l2)
+		ret = getLine(l1, l2, l3)
 		if ret == None:
 			break
 
-		pipeEnable, toBackground, redirection, redirectionFile = ret
+		pipeEnable, pipe2Enable, toBackground, redirection, redirectionFile = ret
 		
 		argVec = l1[0].split()
 		argVec2 = l2[0].split()
+		argVec3 = l3[0].split()
 
-		pfd = os.pipe()
+		if pipeEnable:
+			pfd = os.pipe()
+
+		if pipe2Enable:
+			pfd2 = os.pipe()
 
 		if argVec == []:
 			continue
@@ -81,8 +99,8 @@ def main():
 		elif childPid == 0:
 			if pipeEnable:
 				os.close(pfd[0])
-				if pfd[1] != 1:
-					os.dup2(pfd[1], 1)
+				if pfd[1] != sys.stdout.fileno():
+					os.dup2(pfd[1], sys.stdout.fileno())
 					os.close(pfd[1])
 
 			if redirection:
@@ -110,9 +128,15 @@ def main():
 
 			elif childPid == 0:
 				os.close(pfd[1])
-				if pfd[0] != 0:
-					os.dup2(pfd[0], 0)
+				if pfd[0] != sys.stdin.fileno():
+					os.dup2(pfd[0], sys.stdin.fileno())
 					os.close(pfd[0])
+
+				if pipe2Enable:
+					os.close(pfd2[0]) 
+					if pfd2[1] != sys.stdout.fileno():
+						os.dup2(pfd2[1],sys.stdout.fileno())
+						os.close(pfd2[1])
 
 				try:
 					os.execlp(argVec2[0], *argVec2)
@@ -121,12 +145,38 @@ def main():
 				else:
 					errExit("execlp")
 
+
+		if pipe2Enable:
+			childPid = os.fork()
+			if childPid == -1:
+				errExit("fork")
+
+			elif childPid == 0:
+				os.close(pfd2[1])
+				if pfd2[0] != sys.stdin.fileno():
+					os.dup2(pfd2[0], sys.stdin.fileno())
+					os.close(pfd2[0])
+
+				try:
+					os.execlp(argVec2[0], *argVec2)
+				except OSError:
+					print "%s: command not found" %argVec2[0]
+				else:
+					errExit("execlp")
+
+		if pipeEnable:
 			os.close(pfd[0])
 			os.close(pfd[1])
 			os.wait()
 			os.wait()
 
-			pipeEnable = False
+		if pipe2Enable:
+			os.close(pfd2[0])
+			os.close(pfd2[1])
+			os.wait()
+
+		pipeEnable = False
+		pipe2Enable = False
 			
 	print
 
