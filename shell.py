@@ -83,22 +83,23 @@ def main():
 		argVec2 = l2[0].split()
 		argVec3 = l3[0].split()
 
-		if pipeEnable:
-			pfd = os.pipe()
-
-		if pipe2Enable:
-			pfd2 = os.pipe()
+		pfd = os.pipe()
+		pfd2 = os.pipe()
 
 		if argVec == []:
 			continue
 
 		childPid = os.fork()
+		# error
 		if childPid == -1:
 			errExit("fork")
 
+		# child
 		elif childPid == 0:
 			if pipeEnable:
 				os.close(pfd[0])
+				os.close(pfd2[0])
+				os.close(pfd2[1])
 				if pfd[1] != sys.stdout.fileno():
 					os.dup2(pfd[1], sys.stdout.fileno())
 					os.close(pfd[1])
@@ -115,11 +116,10 @@ def main():
 			else:
 				errExit("execlp")
 
+		# parent
 		else:
 			if not pipeEnable and not toBackground:
 				os.wait()
-			redirection = False
-			toBackground = False
 
 		if pipeEnable:
 			childPid = os.fork()
@@ -128,15 +128,17 @@ def main():
 
 			elif childPid == 0:
 				os.close(pfd[1])
+				os.close(pfd2[0]) 
 				if pfd[0] != sys.stdin.fileno():
 					os.dup2(pfd[0], sys.stdin.fileno())
 					os.close(pfd[0])
 
 				if pipe2Enable:
-					os.close(pfd2[0]) 
 					if pfd2[1] != sys.stdout.fileno():
 						os.dup2(pfd2[1],sys.stdout.fileno())
 						os.close(pfd2[1])
+				else:
+					os.close(pfd2[1])
 
 				try:
 					os.execlp(argVec2[0], *argVec2)
@@ -145,39 +147,44 @@ def main():
 				else:
 					errExit("execlp")
 
-
 		if pipe2Enable:
 			childPid = os.fork()
+			# error
 			if childPid == -1:
 				errExit("fork")
 
+			# child
 			elif childPid == 0:
 				os.close(pfd2[1])
+				os.close(pfd[0])
+				os.close(pfd[1])
 				if pfd2[0] != sys.stdin.fileno():
 					os.dup2(pfd2[0], sys.stdin.fileno())
 					os.close(pfd2[0])
 
 				try:
-					os.execlp(argVec2[0], *argVec2)
+					os.execlp(argVec3[0], *argVec3)
 				except OSError:
 					print "%s: command not found" %argVec2[0]
 				else:
 					errExit("execlp")
 
-		if pipeEnable:
-			os.close(pfd[0])
-			os.close(pfd[1])
-			os.wait()
-			os.wait()
+		os.close(pfd[0])
+		os.close(pfd[1])
+		os.close(pfd2[0])
+		os.close(pfd2[1])
 
+		if pipeEnable:
+			os.wait()
+			os.wait()
 		if pipe2Enable:
-			os.close(pfd2[0])
-			os.close(pfd2[1])
 			os.wait()
 
 		pipeEnable = False
 		pipe2Enable = False
-			
+		redirection = False
+		toBackground = False
+				
 	print
 
 main()
